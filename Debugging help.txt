@@ -1,0 +1,3 @@
+Everytime if the website starts spinning in Dev...I run this in the Console:
++ Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => { console.log('Cleared:', k); localStorage.removeItem(k) })
+Then I Ctrl+Shift+R...seems to reset.
