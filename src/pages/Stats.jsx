@@ -144,8 +144,8 @@ export default function Stats() {
     })
     const seasons = Object.values(seasonMap).sort((a, b) => b.year - a.year)
 
-    // Score trend (last 20 rounds — only dated rounds for the chart)
-    const trendRounds = rounds.filter(r => r.date).slice(-20)
+    // Score trend (last 20 fully-dated rounds — exclude year-only)
+    const trendRounds = rounds.filter(r => r.date && !r.year_only).slice(-20)
     const trendData = trendRounds.map(r => ({
       date: format(parseISO(r.date), 'M/d/yy'),
       [p1Name]: r.player1_score,
@@ -267,14 +267,14 @@ export default function Stats() {
                   <div className="text-fairway-400 text-xs uppercase tracking-widest mb-2">🎯 Closest Match Ever</div>
                   <div className="text-gold font-bold text-2xl font-serif">{stats.closest.round.player1_score} – {stats.closest.round.player2_score}</div>
                   <div className="text-fairway-300 text-sm mt-1">
-                    {stats.closest.diff === 0 ? 'Tied' : `${stats.closest.diff}-stroke margin`} · {courseMap[stats.closest.round.course_id] || '?'} · {stats.closest.round.date ? format(parseISO(stats.closest.round.date), 'MMM d, yyyy') : 'Unknown date'}
+                    {stats.closest.diff === 0 ? 'Tied' : `${stats.closest.diff}-stroke margin`} · {courseMap[stats.closest.round.course_id] || '?'} · {stats.closest.round.year_only ? new Date(stats.closest.round.date).getFullYear() : stats.closest.round.date ? format(parseISO(stats.closest.round.date), 'MMM d, yyyy') : '—'}
                   </div>
                 </div>
                 <div className="card p-5">
                   <div className="text-fairway-400 text-xs uppercase tracking-widest mb-2">💥 Biggest Blowout</div>
                   <div className="text-gold font-bold text-2xl font-serif">{stats.blowout.round.player1_score} – {stats.blowout.round.player2_score}</div>
                   <div className="text-fairway-300 text-sm mt-1">
-                    {stats.blowout.diff}-stroke margin · {courseMap[stats.blowout.round.course_id] || '?'} · {stats.blowout.round.date ? format(parseISO(stats.blowout.round.date), 'MMM d, yyyy') : 'Unknown date'}
+                    {stats.blowout.diff}-stroke margin · {courseMap[stats.blowout.round.course_id] || '?'} · {stats.blowout.round.year_only ? new Date(stats.blowout.round.date).getFullYear() : stats.blowout.round.date ? format(parseISO(stats.blowout.round.date), 'MMM d, yyyy') : '—'}
                   </div>
                 </div>
               </div>
