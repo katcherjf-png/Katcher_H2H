@@ -65,23 +65,27 @@ export default function Stats() {
 
   const stats = useMemo(() => {
     if (!rounds.length) return null
-    const total  = rounds.length
-    const p1Wins = rounds.filter(r => r.result === 'player1_win').length
-    const p2Wins = rounds.filter(r => r.result === 'player2_win').length
-    const draws  = rounds.filter(r => r.result === 'draw').length
+    // Record rounds = rounds that count toward the H2H record
+    const recordRounds = rounds.filter(r => !r.exclude_from_record)
+    const total  = recordRounds.length
+    const p1Wins = recordRounds.filter(r => r.result === 'player1_win').length
+    const p2Wins = recordRounds.filter(r => r.result === 'player2_win').length
+    const draws  = recordRounds.filter(r => r.result === 'draw').length
 
-    // Side bets
-    const bets      = rounds.filter(r => r.side_bet && r.side_bet !== 'none')
+    // Side bets (record rounds only)
+    const bets      = recordRounds.filter(r => r.side_bet && r.side_bet !== 'none')
     const betP1W    = bets.filter(r => r.side_bet === 'player1_win').length
     const betP2W    = bets.filter(r => r.side_bet === 'player2_win').length
     const betDraws  = bets.filter(r => r.side_bet === 'draw').length
 
-    // 9 vs 18
-    const nine   = rounds.filter(r => r.holes === 9)
-    const eight  = rounds.filter(r => r.holes === 18)
+    // 9 vs 18 — record rounds for win counts, all rounds for averages
+    const nine   = recordRounds.filter(r => r.holes === 9)
+    const eight  = recordRounds.filter(r => r.holes === 18)
+    const allNine  = rounds.filter(r => r.holes === 9)
+    const allEight = rounds.filter(r => r.holes === 18)
 
-    // Streak
-    const sorted = [...rounds].sort((a, b) => new Date(b.date) - new Date(a.date))
+    // Streak (record rounds only)
+    const sorted = [...recordRounds].sort((a, b) => new Date(b.date) - new Date(a.date))
     let curStreak = 0, curIsP1 = null, longestP1 = 0, longestP2 = 0
     let tmpP1 = 0, tmpP2 = 0
     if (sorted[0]?.result !== 'draw') {
@@ -99,30 +103,30 @@ export default function Stats() {
       if (!isP1 && tmpStreak > longestP2) longestP2 = tmpStreak
     }
 
-    // Score averages — overall and split by 9/18
-    const p1Avg   = (rounds.reduce((s, r) => s + r.player1_score, 0) / total).toFixed(1)
-    const p2Avg   = (rounds.reduce((s, r) => s + r.player2_score, 0) / total).toFixed(1)
-    const p1Avg18 = eight.length ? (eight.reduce((s, r) => s + r.player1_score, 0) / eight.length).toFixed(1) : null
-    const p2Avg18 = eight.length ? (eight.reduce((s, r) => s + r.player2_score, 0) / eight.length).toFixed(1) : null
-    const p1Avg9  = nine.length  ? (nine.reduce((s, r)  => s + r.player1_score, 0) / nine.length).toFixed(1)  : null
-    const p2Avg9  = nine.length  ? (nine.reduce((s, r)  => s + r.player2_score, 0) / nine.length).toFixed(1)  : null
+    // Score averages — all rounds (including excluded), split by 9/18
+    const p1Avg   = rounds.length ? (rounds.reduce((s, r) => s + r.player1_score, 0) / rounds.length).toFixed(1) : '0.0'
+    const p2Avg   = rounds.length ? (rounds.reduce((s, r) => s + r.player2_score, 0) / rounds.length).toFixed(1) : '0.0'
+    const p1Avg18 = allEight.length ? (allEight.reduce((s, r) => s + r.player1_score, 0) / allEight.length).toFixed(1) : null
+    const p2Avg18 = allEight.length ? (allEight.reduce((s, r) => s + r.player2_score, 0) / allEight.length).toFixed(1) : null
+    const p1Avg9  = allNine.length  ? (allNine.reduce((s, r)  => s + r.player1_score, 0) / allNine.length).toFixed(1)  : null
+    const p2Avg9  = allNine.length  ? (allNine.reduce((s, r)  => s + r.player2_score, 0) / allNine.length).toFixed(1)  : null
 
-    // Milestones — overall and split by 9/18
+    // Milestones — all rounds (best score is best score regardless of record status)
     const diffs = rounds.map(r => ({ diff: Math.abs(r.player1_score - r.player2_score), round: r }))
     const closest = diffs.reduce((a, b) => (a.diff <= b.diff ? a : b), diffs[0])
     const blowout = diffs.reduce((a, b) => (a.diff >= b.diff ? a : b), diffs[0])
     const p1Best   = rounds.reduce((a, b) => (a.player1_score <= b.player1_score ? a : b))
     const p2Best   = rounds.reduce((a, b) => (a.player2_score <= b.player2_score ? a : b))
-    const p1Best18 = eight.length ? eight.reduce((a, b) => (a.player1_score <= b.player1_score ? a : b)) : null
-    const p2Best18 = eight.length ? eight.reduce((a, b) => (a.player2_score <= b.player2_score ? a : b)) : null
-    const p1Best9  = nine.length  ? nine.reduce((a, b)  => (a.player1_score <= b.player1_score ? a : b)) : null
-    const p2Best9  = nine.length  ? nine.reduce((a, b)  => (a.player2_score <= b.player2_score ? a : b)) : null
+    const p1Best18 = allEight.length ? allEight.reduce((a, b) => (a.player1_score <= b.player1_score ? a : b)) : null
+    const p2Best18 = allEight.length ? allEight.reduce((a, b) => (a.player2_score <= b.player2_score ? a : b)) : null
+    const p1Best9  = allNine.length  ? allNine.reduce((a, b)  => (a.player1_score <= b.player1_score ? a : b)) : null
+    const p2Best9  = allNine.length  ? allNine.reduce((a, b)  => (a.player2_score <= b.player2_score ? a : b)) : null
 
     // Course breakdown
     const courseMap = {}
     courses.forEach(c => { courseMap[c.id] = c.name })
     const courseData = {}
-    rounds.forEach(r => {
+    recordRounds.forEach(r => {
       const name = courseMap[r.course_id] || 'Unknown'
       if (!courseData[name]) courseData[name] = { name, p1W: 0, p2W: 0, d: 0, total: 0 }
       courseData[name].total++
@@ -134,7 +138,7 @@ export default function Stats() {
 
     // Season breakdown
     const seasonMap = {}
-    rounds.forEach(r => {
+    recordRounds.forEach(r => {
       const y = r.date ? new Date(r.date).getFullYear() : 'Unknown'
       if (!seasonMap[y]) seasonMap[y] = { year: y, p1W: 0, p2W: 0, d: 0, total: 0 }
       seasonMap[y].total++

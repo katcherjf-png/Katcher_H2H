@@ -80,16 +80,17 @@ export default function Home() {
   if (loading) return <LoadingSpinner fullPage />
 
   const [player1, player2] = players
-  const p1Wins  = rounds.filter(r => r.result === 'player1_win').length
-  const p2Wins  = rounds.filter(r => r.result === 'player2_win').length
-  const draws   = rounds.filter(r => r.result === 'draw').length
-  const total   = rounds.length
+  const recordRounds = rounds.filter(r => !r.exclude_from_record)
+  const p1Wins  = recordRounds.filter(r => r.result === 'player1_win').length
+  const p2Wins  = recordRounds.filter(r => r.result === 'player2_win').length
+  const draws   = recordRounds.filter(r => r.result === 'draw').length
+  const total   = recordRounds.length
   const p1WinPct = total ? ((p1Wins / total) * 100).toFixed(1) : '0.0'
   const p2WinPct = total ? ((p2Wins / total) * 100).toFixed(1) : '0.0'
-  const streak  = computeStreak(rounds)
+  const streak  = computeStreak(recordRounds)
   const last5   = rounds.slice(0, 5)
   const currentYear = new Date().getFullYear()
-  const seasonRounds = rounds.filter(r => new Date(r.date).getFullYear() === currentYear)
+  const seasonRounds = recordRounds.filter(r => r.date && new Date(r.date).getFullYear() === currentYear)
   const seasonP1W = seasonRounds.filter(r => r.result === 'player1_win').length
   const seasonP2W = seasonRounds.filter(r => r.result === 'player2_win').length
   const seasonD   = seasonRounds.filter(r => r.result === 'draw').length
@@ -269,7 +270,9 @@ export default function Home() {
                         </span>
                       </td>
                       <td className="px-3 py-4 text-center">
-                        <ResultBadge result={r.result} isP1Perspective />
+                        {r.exclude_from_record
+                          ? <span className="text-fairway-600 text-xs italic">excl.</span>
+                          : <ResultBadge result={r.result} isP1Perspective />}
                       </td>
                       <td className="px-3 py-4 text-center">
                         <SideBetBadge bet={r.side_bet} isP1Perspective />

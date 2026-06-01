@@ -36,12 +36,13 @@ export default function AdminRounds() {
 
   const { register, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm({
     defaultValues: {
-      date:      format(new Date(), 'yyyy-MM-dd'),
-      year_only: false,
-      year:      String(currentYear),
-      holes:     '18',
-      handicaps_used: false,
-      side_bet:  'none',
+      date:               format(new Date(), 'yyyy-MM-dd'),
+      year_only:          false,
+      year:               String(currentYear),
+      holes:              '18',
+      handicaps_used:     false,
+      side_bet:           'none',
+      exclude_from_record: false,
     }
   })
 
@@ -99,8 +100,9 @@ export default function AdminRounds() {
       player1_net_score: data.handicaps_used ? Number(data.player1_score) - Number(data.player1_handicap) : null,
       player2_net_score: data.handicaps_used ? Number(data.player2_score) - Number(data.player2_handicap) : null,
       result,
-      side_bet:         data.side_bet || 'none',
-      notes:            data.notes || '',
+      side_bet:            data.side_bet || 'none',
+      exclude_from_record: Boolean(data.exclude_from_record),
+      notes:               data.notes || '',
     }
 
     let err
@@ -114,18 +116,19 @@ export default function AdminRounds() {
     flash(editId ? 'Round updated!' : 'Round saved!')
     setEditId(null)
     reset({
-      date:             format(new Date(), 'yyyy-MM-dd'),
-      year_only:        false,
-      year:             String(currentYear),
-      course_id:        '',
-      holes:            '18',
-      player1_score:    '',
-      player2_score:    '',
-      handicaps_used:   false,
-      player1_handicap: '',
-      player2_handicap: '',
-      side_bet:         'none',
-      notes:            '',
+      date:                format(new Date(), 'yyyy-MM-dd'),
+      year_only:           false,
+      year:                String(currentYear),
+      course_id:           '',
+      holes:               '18',
+      player1_score:       '',
+      player2_score:       '',
+      handicaps_used:      false,
+      player1_handicap:    '',
+      player2_handicap:    '',
+      side_bet:            'none',
+      exclude_from_record: false,
+      notes:               '',
     })
     await loadAll()
     setSaving(false)
@@ -144,8 +147,9 @@ export default function AdminRounds() {
       handicaps_used: r.handicaps_used,
       player1_handicap: r.player1_handicap || 0,
       player2_handicap: r.player2_handicap || 0,
-      side_bet: r.side_bet || 'none',
-      notes: r.notes || '',
+      side_bet:            r.side_bet || 'none',
+      exclude_from_record: Boolean(r.exclude_from_record),
+      notes:               r.notes || '',
     })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -307,6 +311,17 @@ export default function AdminRounds() {
           )}
         </div>
 
+        {/* Exclude from record */}
+        <div className="border-t border-fairway-800 pt-5">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" className="accent-gold w-4 h-4" {...register('exclude_from_record')} />
+            <div>
+              <span className="text-white font-medium">Exclude from Head-to-Head record</span>
+              <p className="text-fairway-500 text-xs mt-0.5">Round is saved but won't count toward W/L/D totals, streaks, or season records</p>
+            </div>
+          </label>
+        </div>
+
         {/* Notes */}
         <div className="border-t border-fairway-800 pt-5">
           <label className="form-label">Round Notes / Highlights</label>
@@ -353,7 +368,7 @@ export default function AdminRounds() {
               </thead>
               <tbody>
                 {rounds.map((r, i) => (
-                  <tr key={r.id} className={`border-b border-fairway-800/40 hover:bg-fairway-800/20 ${editId === r.id ? 'bg-gold/5 border-gold/20' : i % 2 === 1 ? 'bg-fairway-900/20' : ''}`}>
+                  <tr key={r.id} className={`border-b border-fairway-800/40 hover:bg-fairway-800/20 ${editId === r.id ? 'bg-gold/5 border-gold/20' : r.exclude_from_record ? 'opacity-50' : i % 2 === 1 ? 'bg-fairway-900/20' : ''}`}>
                     <td className="px-4 py-3 text-fairway-300 whitespace-nowrap">
                       {r.year_only
                         ? <span className="text-fairway-400">{new Date(r.date).getFullYear()}</span>
@@ -363,7 +378,11 @@ export default function AdminRounds() {
                     <td className="px-3 py-3 text-center text-fairway-400">{r.holes}</td>
                     <td className="px-3 py-3 text-center text-gold font-bold">{r.player1_score}</td>
                     <td className="px-3 py-3 text-center text-fairway-200 font-bold">{r.player2_score}</td>
-                    <td className="px-3 py-3 text-center"><ResultBadge result={r.result} /></td>
+                    <td className="px-3 py-3 text-center">
+                      {r.exclude_from_record
+                        ? <span className="text-fairway-600 text-xs italic">excluded</span>
+                        : <ResultBadge result={r.result} />}
+                    </td>
                     <td className="px-3 py-3 text-center text-fairway-500 text-xs">
                       {r.side_bet === 'none' || !r.side_bet ? '—' : r.side_bet === 'player1_win' ? '💰P1' : r.side_bet === 'player2_win' ? '💰P2' : '🤝'}
                     </td>
