@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { format, parseISO } from 'date-fns'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  LineChart, Line, Legend, Cell,
+  LineChart, Line, Legend, Cell, ScatterChart, Scatter, ReferenceLine,
 } from 'recharts'
 import { supabase } from '../lib/supabase'
 import LoadingSpinner from '../components/LoadingSpinner'
@@ -33,6 +33,17 @@ const CustomTooltip = ({ active, payload, label }) => {
     </div>
   )
 }
+
+const BUCKETS_18 = [
+  { label: 'Short',  range: 'under 6,000 yds',   test: y => y < 6000 },
+  { label: 'Medium', range: '6,000 – 6,499 yds',  test: y => y >= 6000 && y < 6500 },
+  { label: 'Long',   range: '6,500+ yds',          test: y => y >= 6500 },
+]
+const BUCKETS_9 = [
+  { label: 'Short',  range: 'under 2,900 yds',     test: y => y < 2900 },
+  { label: 'Medium', range: '2,900 – 3,199 yds',   test: y => y >= 2900 && y < 3200 },
+  { label: 'Long',   range: '3,200+ yds',           test: y => y >= 3200 },
+]
 
 export default function Stats() {
   const [rounds, setRounds] = useState([])
@@ -165,6 +176,39 @@ export default function Stats() {
       [`${p2Name} W%`]: parseFloat(pct(s.p2W, s.total)),
     }))
 
+    // ── Course Length Analysis ──
+    const yardageMap = {}
+    courses.forEach(c => { yardageMap[c.id] = { y18: c.yardage_18, y9: c.yardage_9, name: c.name } })
+
+    function buildScatter(holes) {
+      const buckets = holes === 18 ? BUCKETS_18 : BUCKETS_9
+      const yKey    = holes === 18 ? 'y18' : 'y9'
+      const points  = recordRounds
+        .filter(r => r.holes === holes && r.course_id && yardageMap[r.course_id]?.[yKey])
+        .map(r => ({
+          yardage: yardageMap[r.course_id][yKey],
+          diff:    r.player1_score - r.player2_score,  // negative = P1 wins
+          result:  r.result,
+          course:  yardageMap[r.course_id].name,
+          p1:      r.player1_score,
+          p2:      r.player2_score,
+        }))
+        .sort((a, b) => a.yardage - b.yardage)
+
+      const bucketData = buckets.map(b => {
+        const rs  = points.filter(r => b.test(r.yardage))
+        const p1W = rs.filter(r => r.result === 'player1_win').length
+        const p2W = rs.filter(r => r.result === 'player2_win').length
+        const d   = rs.filter(r => r.result === 'draw').length
+        return { label: b.label, range: b.range, n: rs.length, p1W, p2W, d }
+      }).filter(b => b.n > 0)
+
+      return { points, bucketData }
+    }
+
+    const lengthAnalysis18 = buildScatter(18)
+    const lengthAnalysis9  = buildScatter(9)
+
     return {
       total, p1Wins, p2Wins, draws,
       bets, betP1W, betP2W, betDraws,
@@ -173,6 +217,7 @@ export default function Stats() {
       p1Avg, p2Avg, p1Avg9, p2Avg9, p1Avg18, p2Avg18,
       closest, blowout, p1Best, p2Best, p1Best9, p2Best9, p1Best18, p2Best18,
       courseStats, courseChartData, seasons, trendData9, trendData18,
+      lengthAnalysis18, lengthAnalysis9,
     }
   }, [rounds, courses, p1Name, p2Name])
 
@@ -312,6 +357,133 @@ export default function Stats() {
                     </div>
                   ))}
                 </div>
+              </section>
+            )}
+
+            {/* ── Course Length Analysis ── */}
+            {(stats.lengthAnalysis18.points.length > 0 || stats.lengthAnalysis9.points.length > 0) && (
+              <section>
+                <h2 className="section-title"><span>📏</span> Win Probability by Course Length</h2>
+                <p className="text-fairway-500 text-xs mb-4 -mt-2">
+                  Score differential per round vs yardage — dots below 0 = {p1Name} wins, above 0 = {p2Name} wins
+                </p>
+
+                {[
+                  { label: '18-Hole', analysis: stats.lengthAnalysis18 },
+                  { label: '9-Hole',  analysis: stats.lengthAnalysis9  },
+                ].map(({ label, analysis }) => analysis.points.length === 0 ? null : (
+                  <div key={label} className="mb-6">
+                    <h3 className="font-serif text-lg text-gold mb-3">{label} Courses</h3>
+
+                    {/* Scatter chart */}
+                    {analysis.points.length > 1 && (
+                      <div className="card p-4 sm:p-5 mb-4">
+                        <ResponsiveContainer width="100%" height={220}>
+                          <ScatterChart margin={{ top: 10, right: 20, left: -10, bottom: 30 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1a3d1e" />
+                            <XAxis
+                              dataKey="yardage"
+                              type="number"
+                              name="Yardage"
+                              domain={['auto', 'auto']}
+                              tick={{ fill: '#5fa363', fontSize: 10 }}
+                              tickLine={false}
+                              tickFormatter={v => v.toLocaleString()}
+                              label={{ value: 'Course Yardage', position: 'insideBottom', offset: -18, fill: '#5fa363', fontSize: 11 }}
+                            />
+                            <YAxis
+                              dataKey="diff"
+                              type="number"
+                              name="Score Diff"
+                              tick={{ fill: '#5fa363', fontSize: 10 }}
+                              tickLine={false}
+                              axisLine={false}
+                              domain={['auto', 'auto']}
+                            />
+                            <ReferenceLine y={0} stroke="#c9a84c" strokeDasharray="5 3" strokeOpacity={0.5}
+                              label={{ value: '← tie →', position: 'right', fill: '#c9a84c', fontSize: 9 }} />
+                            <Tooltip
+                              cursor={{ strokeDasharray: '3 3', stroke: '#5fa363' }}
+                              content={({ active, payload }) => {
+                                if (!active || !payload?.length) return null
+                                const d = payload[0].payload
+                                return (
+                                  <div className="bg-fairway-900 border border-gold/30 rounded-lg p-3 text-xs shadow-xl">
+                                    <p className="text-gold font-semibold mb-1">{d.course}</p>
+                                    <p className="text-fairway-400">{d.yardage.toLocaleString()} yds</p>
+                                    <p className="mt-1">
+                                      <span className="text-gold">{p1Name}: {d.p1}</span>
+                                      <span className="text-fairway-600 mx-1">·</span>
+                                      <span className="text-fairway-300">{p2Name}: {d.p2}</span>
+                                    </p>
+                                    <p className={`mt-0.5 font-semibold ${d.result === 'player1_win' ? 'text-gold' : d.result === 'player2_win' ? 'text-fairway-300' : 'text-fairway-500'}`}>
+                                      {d.result === 'player1_win' ? `${p1Name} wins` : d.result === 'player2_win' ? `${p2Name} wins` : 'Draw'}
+                                    </p>
+                                  </div>
+                                )
+                              }}
+                            />
+                            <Scatter
+                              data={analysis.points}
+                              fillOpacity={0.85}
+                            >
+                              {analysis.points.map((pt, i) => (
+                                <Cell key={i} fill={pt.result === 'player1_win' ? '#c9a84c' : pt.result === 'player2_win' ? '#5fa363' : '#6b7280'} />
+                              ))}
+                            </Scatter>
+                          </ScatterChart>
+                        </ResponsiveContainer>
+                        <div className="flex items-center gap-4 mt-1 justify-center text-xs text-fairway-500">
+                          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gold inline-block" />{p1Name} wins</span>
+                          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-fairway-400 inline-block" />{p2Name} wins</span>
+                          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gray-500 inline-block" />Draw</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Bucket table */}
+                    <div className="card overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-fairway-800 bg-fairway-900/50">
+                            <th className="text-left px-4 py-3 text-fairway-400 text-xs uppercase tracking-wider">Length</th>
+                            <th className="text-left px-3 py-3 text-fairway-500 text-xs uppercase tracking-wider hidden sm:table-cell">Yardage</th>
+                            <th className="text-center px-3 py-3 text-fairway-400 text-xs uppercase tracking-wider">Rounds</th>
+                            <th className="text-center px-3 py-3 text-gold text-xs uppercase tracking-wider">{p1Name}</th>
+                            <th className="text-center px-3 py-3 text-fairway-300 text-xs uppercase tracking-wider">{p2Name}</th>
+                            <th className="text-center px-3 py-3 text-fairway-400 text-xs uppercase tracking-wider">Advantage</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analysis.bucketData.map((b, i) => (
+                            <tr key={b.label} className={`border-b border-fairway-800/50 hover:bg-fairway-800/20 ${i % 2 === 1 ? 'bg-fairway-900/20' : ''}`}>
+                              <td className="px-4 py-3 text-white font-medium">{b.label}</td>
+                              <td className="px-3 py-3 text-fairway-500 text-xs hidden sm:table-cell">{b.range}</td>
+                              <td className="px-3 py-3 text-center text-fairway-400">{b.n}</td>
+                              <td className="px-3 py-3 text-center">
+                                <span className="text-gold font-semibold">{b.p1W}</span>
+                                <span className="text-fairway-600 text-xs ml-1">({pct(b.p1W, b.n)}%)</span>
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <span className="text-fairway-300 font-semibold">{b.p2W}</span>
+                                <span className="text-fairway-600 text-xs ml-1">({pct(b.p2W, b.n)}%)</span>
+                              </td>
+                              <td className="px-3 py-3 text-center text-xs font-semibold">
+                                {b.n < 3
+                                  ? <span className="text-fairway-600 font-normal italic">small sample</span>
+                                  : b.p1W > b.p2W
+                                  ? <span className="text-gold">{p1Name} 🏅</span>
+                                  : b.p2W > b.p1W
+                                  ? <span className="text-fairway-300">{p2Name} 🏅</span>
+                                  : <span className="text-fairway-500">Even</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
               </section>
             )}
 
