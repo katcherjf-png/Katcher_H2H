@@ -99,16 +99,24 @@ export default function Stats() {
       if (!isP1 && tmpStreak > longestP2) longestP2 = tmpStreak
     }
 
-    // Score averages
-    const p1Avg = (rounds.reduce((s, r) => s + r.player1_score, 0) / total).toFixed(1)
-    const p2Avg = (rounds.reduce((s, r) => s + r.player2_score, 0) / total).toFixed(1)
+    // Score averages — overall and split by 9/18
+    const p1Avg   = (rounds.reduce((s, r) => s + r.player1_score, 0) / total).toFixed(1)
+    const p2Avg   = (rounds.reduce((s, r) => s + r.player2_score, 0) / total).toFixed(1)
+    const p1Avg18 = eight.length ? (eight.reduce((s, r) => s + r.player1_score, 0) / eight.length).toFixed(1) : null
+    const p2Avg18 = eight.length ? (eight.reduce((s, r) => s + r.player2_score, 0) / eight.length).toFixed(1) : null
+    const p1Avg9  = nine.length  ? (nine.reduce((s, r)  => s + r.player1_score, 0) / nine.length).toFixed(1)  : null
+    const p2Avg9  = nine.length  ? (nine.reduce((s, r)  => s + r.player2_score, 0) / nine.length).toFixed(1)  : null
 
-    // Milestones
+    // Milestones — overall and split by 9/18
     const diffs = rounds.map(r => ({ diff: Math.abs(r.player1_score - r.player2_score), round: r }))
     const closest = diffs.reduce((a, b) => (a.diff <= b.diff ? a : b), diffs[0])
     const blowout = diffs.reduce((a, b) => (a.diff >= b.diff ? a : b), diffs[0])
-    const p1Best  = rounds.reduce((a, b) => (a.player1_score <= b.player1_score ? a : b))
-    const p2Best  = rounds.reduce((a, b) => (a.player2_score <= b.player2_score ? a : b))
+    const p1Best   = rounds.reduce((a, b) => (a.player1_score <= b.player1_score ? a : b))
+    const p2Best   = rounds.reduce((a, b) => (a.player2_score <= b.player2_score ? a : b))
+    const p1Best18 = eight.length ? eight.reduce((a, b) => (a.player1_score <= b.player1_score ? a : b)) : null
+    const p2Best18 = eight.length ? eight.reduce((a, b) => (a.player2_score <= b.player2_score ? a : b)) : null
+    const p1Best9  = nine.length  ? nine.reduce((a, b)  => (a.player1_score <= b.player1_score ? a : b)) : null
+    const p2Best9  = nine.length  ? nine.reduce((a, b)  => (a.player2_score <= b.player2_score ? a : b)) : null
 
     // Course breakdown
     const courseMap = {}
@@ -156,8 +164,8 @@ export default function Stats() {
       bets, betP1W, betP2W, betDraws,
       nine, eight,
       curStreak, curIsP1, longestP1, longestP2,
-      p1Avg, p2Avg,
-      closest, blowout, p1Best, p2Best,
+      p1Avg, p2Avg, p1Avg9, p2Avg9, p1Avg18, p2Avg18,
+      closest, blowout, p1Best, p2Best, p1Best9, p2Best9, p1Best18, p2Best18,
       courseStats, courseChartData, seasons, trendData,
     }
   }, [rounds, courses, p1Name, p2Name])
@@ -199,22 +207,61 @@ export default function Stats() {
             {/* ── Score Averages & Milestones ── */}
             <section>
               <h2 className="section-title"><span>📈</span> Scoring</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <StatCard label={`${p1Name} Avg Score`} value={stats.p1Avg} subValue="all rounds" icon="🏌️" highlight />
-                <StatCard label={`${p2Name} Avg Score`} value={stats.p2Avg} subValue="all rounds" icon="🏌️" />
-                <StatCard
-                  label={`${p1Name} Best Round`}
-                  value={stats.p1Best.player1_score}
-                  subValue={`${courseMap[stats.p1Best.course_id] || '?'} · ${format(parseISO(stats.p1Best.date), 'M/d/yy')}`}
-                  icon="⭐"
-                />
-                <StatCard
-                  label={`${p2Name} Best Round`}
-                  value={stats.p2Best.player2_score}
-                  subValue={`${courseMap[stats.p2Best.course_id] || '?'} · ${format(parseISO(stats.p2Best.date), 'M/d/yy')}`}
-                  icon="⭐"
-                />
+
+              {/* Averages table split by format */}
+              <div className="card overflow-hidden mb-4">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-fairway-800 bg-fairway-900/50">
+                      <th className="text-left px-4 py-3 text-fairway-400 text-xs uppercase tracking-wider">Format</th>
+                      <th className="text-center px-3 py-3 text-fairway-400 text-xs uppercase tracking-wider">Rounds</th>
+                      <th className="text-center px-3 py-3 text-gold text-xs uppercase tracking-wider">{p1Name} Avg</th>
+                      <th className="text-center px-3 py-3 text-fairway-300 text-xs uppercase tracking-wider">{p2Name} Avg</th>
+                      <th className="text-center px-3 py-3 text-gold text-xs uppercase tracking-wider hidden sm:table-cell">{p1Name} Best</th>
+                      <th className="text-center px-3 py-3 text-fairway-300 text-xs uppercase tracking-wider hidden sm:table-cell">{p2Name} Best</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.nine.length > 0 && (
+                      <tr className="border-b border-fairway-800/50 hover:bg-fairway-800/20">
+                        <td className="px-4 py-3 text-white font-medium">9 Holes</td>
+                        <td className="px-3 py-3 text-center text-fairway-400">{stats.nine.length}</td>
+                        <td className="px-3 py-3 text-center text-gold font-bold text-lg">{stats.p1Avg9}</td>
+                        <td className="px-3 py-3 text-center text-fairway-200 font-bold text-lg">{stats.p2Avg9}</td>
+                        <td className="px-3 py-3 text-center text-gold hidden sm:table-cell">
+                          {stats.p1Best9 ? <span className="font-semibold">{stats.p1Best9.player1_score} <span className="text-fairway-500 text-xs font-normal">· {courseMap[stats.p1Best9.course_id] || '?'}</span></span> : '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-fairway-300 hidden sm:table-cell">
+                          {stats.p2Best9 ? <span className="font-semibold">{stats.p2Best9.player2_score} <span className="text-fairway-500 text-xs font-normal">· {courseMap[stats.p2Best9.course_id] || '?'}</span></span> : '—'}
+                        </td>
+                      </tr>
+                    )}
+                    {stats.eight.length > 0 && (
+                      <tr className="border-b border-fairway-800/50 hover:bg-fairway-800/20">
+                        <td className="px-4 py-3 text-white font-medium">18 Holes</td>
+                        <td className="px-3 py-3 text-center text-fairway-400">{stats.eight.length}</td>
+                        <td className="px-3 py-3 text-center text-gold font-bold text-lg">{stats.p1Avg18}</td>
+                        <td className="px-3 py-3 text-center text-fairway-200 font-bold text-lg">{stats.p2Avg18}</td>
+                        <td className="px-3 py-3 text-center text-gold hidden sm:table-cell">
+                          {stats.p1Best18 ? <span className="font-semibold">{stats.p1Best18.player1_score} <span className="text-fairway-500 text-xs font-normal">· {courseMap[stats.p1Best18.course_id] || '?'}</span></span> : '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-fairway-300 hidden sm:table-cell">
+                          {stats.p2Best18 ? <span className="font-semibold">{stats.p2Best18.player2_score} <span className="text-fairway-500 text-xs font-normal">· {courseMap[stats.p2Best18.course_id] || '?'}</span></span> : '—'}
+                        </td>
+                      </tr>
+                    )}
+                    <tr className="bg-fairway-900/30">
+                      <td className="px-4 py-3 text-fairway-500 text-xs uppercase tracking-wider">All Rounds</td>
+                      <td className="px-3 py-3 text-center text-fairway-500 text-xs">{stats.total}</td>
+                      <td className="px-3 py-3 text-center text-gold/60 text-xs">{stats.p1Avg}</td>
+                      <td className="px-3 py-3 text-center text-fairway-400 text-xs">{stats.p2Avg}</td>
+                      <td className="px-3 py-3 text-center text-gold/60 text-xs hidden sm:table-cell">{stats.p1Best.player1_score}</td>
+                      <td className="px-3 py-3 text-center text-fairway-400 text-xs hidden sm:table-cell">{stats.p2Best.player2_score}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                 <div className="card p-5">
                   <div className="text-fairway-400 text-xs uppercase tracking-widest mb-2">🎯 Closest Match Ever</div>
@@ -317,7 +364,10 @@ export default function Stats() {
             <section>
               <h2 className="section-title"><span>🔢</span> 9-Hole vs 18-Hole</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[{ label: '9-Hole Rounds', data: stats.nine }, { label: '18-Hole Rounds', data: stats.eight }].map(({ label, data }) => {
+                {[
+                  { label: '9-Hole Rounds',  data: stats.nine,  p1Avg: stats.p1Avg9,  p2Avg: stats.p2Avg9  },
+                  { label: '18-Hole Rounds', data: stats.eight, p1Avg: stats.p1Avg18, p2Avg: stats.p2Avg18 },
+                ].map(({ label, data, p1Avg, p2Avg }) => {
                   const n = data.length
                   const w1 = data.filter(r => r.result === 'player1_win').length
                   const w2 = data.filter(r => r.result === 'player2_win').length
@@ -329,14 +379,20 @@ export default function Stats() {
                         <div className="space-y-3">
                           <div className="flex justify-between items-center">
                             <span className="text-fairway-300 text-sm">{p1Name}</span>
-                            <span className="text-gold font-bold">{w1} wins <span className="text-fairway-500 text-xs">({pct(w1, n)}%)</span></span>
+                            <div className="text-right">
+                              <span className="text-gold font-bold">{w1} wins <span className="text-fairway-500 text-xs">({pct(w1, n)}%)</span></span>
+                              {p1Avg && <span className="text-fairway-500 text-xs ml-3">avg <span className="text-gold/70 font-semibold">{p1Avg}</span></span>}
+                            </div>
                           </div>
                           <div className="h-2 bg-fairway-800 rounded-full overflow-hidden">
                             <div className="h-full bg-gold rounded-full" style={{ width: `${pct(w1, n)}%` }} />
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-fairway-300 text-sm">{p2Name}</span>
-                            <span className="text-fairway-300 font-bold">{w2} wins <span className="text-fairway-500 text-xs">({pct(w2, n)}%)</span></span>
+                            <div className="text-right">
+                              <span className="text-fairway-300 font-bold">{w2} wins <span className="text-fairway-500 text-xs">({pct(w2, n)}%)</span></span>
+                              {p2Avg && <span className="text-fairway-500 text-xs ml-3">avg <span className="text-fairway-300/80 font-semibold">{p2Avg}</span></span>}
+                            </div>
                           </div>
                           <div className="h-2 bg-fairway-800 rounded-full overflow-hidden">
                             <div className="h-full bg-fairway-400 rounded-full" style={{ width: `${pct(w2, n)}%` }} />
