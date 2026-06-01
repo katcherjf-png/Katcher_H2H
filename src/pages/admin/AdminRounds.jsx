@@ -112,7 +112,12 @@ export default function AdminRounds() {
       ({ error: err } = await supabase.from('rounds').insert(payload))
     }
 
-    if (err) { flash(`Error: ${err.message}`); setSaving(false); return }
+    if (err) {
+      const isAuthErr = err.message?.toLowerCase().includes('jwt') || err.message?.toLowerCase().includes('auth') || err.code === 'PGRST301'
+      flash(`Error: ${err.message}${isAuthErr ? ' — try refreshing the page' : ''}`)
+      setSaving(false)
+      return
+    }
     flash(editId ? 'Round updated!' : 'Round saved!')
     setEditId(null)
     reset({

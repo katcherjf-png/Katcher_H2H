@@ -41,7 +41,27 @@ export function AuthProvider({ children }) {
         }
       }
     )
-    return () => { subscription.unsubscribe(); clearTimeout(lockTimeout) }
+
+    // When the tab regains focus, refresh the session so the JWT doesn't
+    // silently expire while the tab was backgrounded / throttled by the browser
+    async function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          setUser(session.user)
+        } else {
+          setUser(null)
+          setProfile(null)
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(lockTimeout)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [])
 
   async function fetchProfile(userId) {
