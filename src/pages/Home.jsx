@@ -250,7 +250,7 @@ export default function Home() {
                   {last5.map((r, i) => (
                     <tr key={r.id} className={`border-b border-fairway-800/50 hover:bg-fairway-800/30 transition-colors ${i % 2 === 0 ? '' : 'bg-fairway-900/20'}`}>
                       <td className="px-6 py-4 text-fairway-300 whitespace-nowrap">
-                        {format(parseISO(r.date), 'MMM d, yyyy')}
+                        {r.date ? format(parseISO(r.date), 'MMM d, yyyy') : <span className="text-fairway-600 italic">Unknown</span>}
                       </td>
                       <td className="px-3 py-4 text-white font-medium truncate max-w-[140px]">
                         {courses[r.course_id] || '—'}

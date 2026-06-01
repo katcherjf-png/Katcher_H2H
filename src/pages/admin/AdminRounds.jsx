@@ -35,6 +35,7 @@ export default function AdminRounds() {
   const { register, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm({
     defaultValues: {
       date: format(new Date(), 'yyyy-MM-dd'),
+      date_unknown: false,
       holes: '18',
       handicaps_used: false,
       side_bet: 'none',
@@ -46,6 +47,7 @@ export default function AdminRounds() {
   const useHandicap   = watch('handicaps_used')
   const p1Hcp         = watch('player1_handicap')
   const p2Hcp         = watch('player2_handicap')
+  const dateUnknown   = watch('date_unknown')
 
   const liveResult = p1Score && p2Score
     ? computeResult(Number(p1Score), Number(p2Score), useHandicap, Number(p1Hcp), Number(p2Hcp))
@@ -80,7 +82,7 @@ export default function AdminRounds() {
       data.handicaps_used, Number(data.player1_handicap), Number(data.player2_handicap)
     )
     const payload = {
-      date:             data.date,
+      date:             data.date_unknown ? null : data.date,
       course_id:        data.course_id || null,
       holes:            Number(data.holes),
       player1_id:       players[0]?.id,
@@ -109,6 +111,7 @@ export default function AdminRounds() {
     setEditId(null)
     reset({
       date:             format(new Date(), 'yyyy-MM-dd'),
+      date_unknown:     false,
       course_id:        '',
       holes:            '18',
       player1_score:    '',
@@ -126,7 +129,8 @@ export default function AdminRounds() {
   function startEdit(r) {
     setEditId(r.id)
     reset({
-      date: r.date,
+      date: r.date || format(new Date(), 'yyyy-MM-dd'),
+      date_unknown: !r.date,
       course_id: r.course_id || '',
       holes: String(r.holes),
       player1_score: r.player1_score,
@@ -170,8 +174,17 @@ export default function AdminRounds() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {/* Date */}
           <div>
-            <label className="form-label">Date *</label>
-            <input type="date" className="form-input" {...register('date', { required: 'Required' })} />
+            <label className="form-label">Date</label>
+            <input
+              type="date"
+              className={`form-input ${dateUnknown ? 'opacity-40 cursor-not-allowed' : ''}`}
+              disabled={dateUnknown}
+              {...register('date', { required: dateUnknown ? false : 'Required' })}
+            />
+            <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+              <input type="checkbox" className="accent-gold w-4 h-4" {...register('date_unknown')} />
+              <span className="text-fairway-400 text-xs">Date unknown</span>
+            </label>
             {errors.date && <p className="text-red-400 text-xs mt-1">{errors.date.message}</p>}
           </div>
 
@@ -323,7 +336,7 @@ export default function AdminRounds() {
               <tbody>
                 {rounds.map((r, i) => (
                   <tr key={r.id} className={`border-b border-fairway-800/40 hover:bg-fairway-800/20 ${editId === r.id ? 'bg-gold/5 border-gold/20' : i % 2 === 1 ? 'bg-fairway-900/20' : ''}`}>
-                    <td className="px-4 py-3 text-fairway-300 whitespace-nowrap">{format(parseISO(r.date), 'MMM d, yyyy')}</td>
+                    <td className="px-4 py-3 text-fairway-300 whitespace-nowrap">{r.date ? format(parseISO(r.date), 'MMM d, yyyy') : <span className="text-fairway-600 italic">Unknown</span>}</td>
                     <td className="px-3 py-3 text-white max-w-[140px] truncate">{r.courses?.name || '—'}</td>
                     <td className="px-3 py-3 text-center text-fairway-400">{r.holes}</td>
                     <td className="px-3 py-3 text-center text-gold font-bold">{r.player1_score}</td>
