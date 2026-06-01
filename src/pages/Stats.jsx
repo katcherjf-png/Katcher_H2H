@@ -148,13 +148,15 @@ export default function Stats() {
     })
     const seasons = Object.values(seasonMap).sort((a, b) => b.year - a.year)
 
-    // Score trend (last 20 fully-dated rounds — exclude year-only)
-    const trendRounds = rounds.filter(r => r.date && !r.year_only).slice(-20)
-    const trendData = trendRounds.map(r => ({
-      date: format(parseISO(r.date), 'M/d/yy'),
-      [p1Name]: r.player1_score,
-      [p2Name]: r.player2_score,
-    }))
+    // Score trend — split by 9-hole and 18-hole, last 20 fully-dated rounds each
+    const trendData9 = rounds
+      .filter(r => r.date && !r.year_only && r.holes === 9)
+      .slice(-20)
+      .map(r => ({ date: format(parseISO(r.date), 'M/d/yy'), [p1Name]: r.player1_score, [p2Name]: r.player2_score }))
+    const trendData18 = rounds
+      .filter(r => r.date && !r.year_only && r.holes === 18)
+      .slice(-20)
+      .map(r => ({ date: format(parseISO(r.date), 'M/d/yy'), [p1Name]: r.player1_score, [p2Name]: r.player2_score }))
 
     // Course chart data
     const courseChartData = courseStats.slice(0, 8).map(s => ({
@@ -170,7 +172,7 @@ export default function Stats() {
       curStreak, curIsP1, longestP1, longestP2,
       p1Avg, p2Avg, p1Avg9, p2Avg9, p1Avg18, p2Avg18,
       closest, blowout, p1Best, p2Best, p1Best9, p2Best9, p1Best18, p2Best18,
-      courseStats, courseChartData, seasons, trendData,
+      courseStats, courseChartData, seasons, trendData9, trendData18,
     }
   }, [rounds, courses, p1Name, p2Name])
 
@@ -284,23 +286,31 @@ export default function Stats() {
               </div>
             </section>
 
-            {/* ── Score Trend Chart ── */}
-            {stats.trendData.length > 1 && (
+            {/* ── Score Trend Charts ── */}
+            {(stats.trendData9.length > 1 || stats.trendData18.length > 1) && (
               <section>
-                <h2 className="section-title"><span>📉</span> Score Trend (Last 20 Rounds)</h2>
-                <div className="card p-4 sm:p-6">
-                  <p className="text-fairway-500 text-xs mb-4">Lower score is better in golf</p>
-                  <ResponsiveContainer width="100%" height={260}>
-                    <LineChart data={stats.trendData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1a3d1e" />
-                      <XAxis dataKey="date" tick={{ fill: '#5fa363', fontSize: 11 }} tickLine={false} />
-                      <YAxis tick={{ fill: '#5fa363', fontSize: 11 }} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend wrapperStyle={{ color: '#8ec490', fontSize: 12 }} />
-                      <Line type="monotone" dataKey={p1Name} stroke="#c9a84c" strokeWidth={2.5} dot={{ fill: '#c9a84c', r: 3 }} activeDot={{ r: 5 }} />
-                      <Line type="monotone" dataKey={p2Name} stroke="#5fa363" strokeWidth={2.5} dot={{ fill: '#5fa363', r: 3 }} activeDot={{ r: 5 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                <h2 className="section-title"><span>📉</span> Score Trend</h2>
+                <p className="text-fairway-500 text-xs mb-4 -mt-2">Lower score is better · Last 20 rounds per format</p>
+                <div className={`grid gap-4 ${stats.trendData9.length > 1 && stats.trendData18.length > 1 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+                  {[
+                    { label: '9-Hole Rounds', data: stats.trendData9 },
+                    { label: '18-Hole Rounds', data: stats.trendData18 },
+                  ].map(({ label, data }) => data.length > 1 && (
+                    <div key={label} className="card p-4 sm:p-5">
+                      <h3 className="font-serif text-base text-gold mb-3">{label} <span className="text-fairway-500 text-xs font-sans">({data.length} rounds)</span></h3>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <LineChart data={data} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#1a3d1e" />
+                          <XAxis dataKey="date" tick={{ fill: '#5fa363', fontSize: 10 }} tickLine={false} interval="preserveStartEnd" />
+                          <YAxis tick={{ fill: '#5fa363', fontSize: 10 }} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend wrapperStyle={{ color: '#8ec490', fontSize: 11 }} />
+                          <Line type="monotone" dataKey={p1Name} stroke="#c9a84c" strokeWidth={2.5} dot={{ fill: '#c9a84c', r: 3 }} activeDot={{ r: 5 }} />
+                          <Line type="monotone" dataKey={p2Name} stroke="#5fa363" strokeWidth={2.5} dot={{ fill: '#5fa363', r: 3 }} activeDot={{ r: 5 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ))}
                 </div>
               </section>
             )}
